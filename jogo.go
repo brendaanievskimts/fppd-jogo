@@ -20,14 +20,18 @@ type Elemento struct {
 
 // Jogo contém o estado atual do jogo
 type Jogo struct {
-	Mutex          sync.Mutex
-	Mapa           [][]Elemento // grade 2D representando o mapa
-	PosX, PosY     int          // posição atual do personagem
-	UltimoVisitado Elemento     // elemento que estava na posição do personagem antes de mover
-	StatusMsg      string       // mensagem para a barra de status
-	Inimigos       []*Inimigos  // Agora usamos um slice de ponteiros para Inimigo
-	Vida           int
-	UltimoDano     time.Time
+	Mutex               sync.Mutex
+	Mapa                [][]Elemento // grade 2D representando o mapa
+	PosX, PosY          int          // posição atual do personagem
+	UltimoVisitado      Elemento     // elemento que estava na posição do personagem antes de mover
+	StatusMsg           string       // mensagem para a barra de status
+	Inimigos            []*Inimigos  // Agora usamos um slice de ponteiros para Inimigo
+	Vida                int
+	UltimoDano          time.Time
+	VegetacoesColetadas int
+	TempoRestante       int
+	VegChan             chan int // Canal para comunicação de vegetações coletadas
+	GameOver            bool
 }
 
 type Inimigos struct {
@@ -272,4 +276,28 @@ func jogadorPertoDeArmadilha(jogo *Jogo, x, y int) bool {
 		}
 	}
 	return false
+}
+
+func timerJogo(jogo *Jogo, done chan struct{}) {
+	timeout := time.After(30 * time.Second)
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			jogo.Mutex.Lock()
+			jogo.TempoRestante--
+			jogo.Mutex.Unlock()
+		case <-timeout:
+			jogo.Mutex.Lock()
+			jogo.GameOver = true
+			jogo.StatusMsg = fmt.Sprintf("Tempo esgotado! Vegetacoes coletadas: %d", jogo.VegetacoesColetadas)
+			jogo.Mutex.Unlock()
+			close(done)
+			return
+		case <-done:
+			return
+		}
+	}
 }

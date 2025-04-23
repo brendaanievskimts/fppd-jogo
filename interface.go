@@ -6,6 +6,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/nsf/termbox-go"
 )
 
@@ -78,7 +80,6 @@ func interfaceLerEventoTeclado() EventoTeclado {
 // Renderiza todo o estado atual do jogo na tela
 func interfaceDesenharJogo(jogo *Jogo) {
 	interfaceLimparTela()
-
 	// Desenha todos os elementos do mapa
 	for y, linha := range jogo.Mapa {
 		for x, elem := range linha {
@@ -114,7 +115,11 @@ func interfaceDesenharElemento(x, y int, elem Elemento) {
 // Exibe uma barra de status com informações úteis ao jogador
 func interfaceDesenharBarraDeStatus(jogo *Jogo) {
 	// Linha de status dinâmica
-	for i, c := range jogo.StatusMsg {
+
+	status := fmt.Sprintf("%s | Veg: %d | Tempo: %ds",
+		jogo.StatusMsg, jogo.VegetacoesColetadas, jogo.TempoRestante)
+
+	for i, c := range status {
 		termbox.SetCell(i, len(jogo.Mapa)+1, c, CorTexto, CorPadrao)
 	}
 

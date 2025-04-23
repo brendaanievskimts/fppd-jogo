@@ -21,6 +21,18 @@ func personagemMover(tecla rune, jogo *Jogo) {
 
 	nx, ny := jogo.PosX+dx, jogo.PosY+dy
 
+	// Verifica colisão com vegetação
+	if jogo.Mapa[ny][nx].simbolo == Vegetacao.simbolo {
+		jogo.Mutex.Lock()
+		jogo.Mapa[ny][nx] = Vazio
+		jogo.VegetacoesColetadas++
+		select {
+		case jogo.VegChan <- jogo.VegetacoesColetadas:
+		default:
+		}
+		jogo.Mutex.Unlock()
+	}
+
 	// Verifica colisão com inimigos
 	for _, inimigo := range jogo.Inimigos {
 		if inimigo.X == nx && inimigo.Y == ny {
