@@ -1,10 +1,12 @@
 // personagem.go - Funções para movimentação e ações do personagem
 package main
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // Atualiza a posição do personagem com base na tecla pressionada (WASD)
-func personagemMover(tecla rune, jogo *Jogo) bool {
+func personagemMover(tecla rune, jogo *Jogo) {
 	dx, dy := 0, 0
 	switch tecla {
 	case 'w':
@@ -19,19 +21,15 @@ func personagemMover(tecla rune, jogo *Jogo) bool {
 
 	nx, ny := jogo.PosX+dx, jogo.PosY+dy
 
-	jogo.Mutex.Lock()
-	defer jogo.Mutex.Unlock()
-
+	// Verifica colisão com inimigos
 	for _, inimigo := range jogo.Inimigos {
-		if inimigo.X == nx && inimigo.Y == ny && inimigo.Ativo {
-			jogo.Vidas--
-			jogo.StatusMsg = fmt.Sprintf("Você foi atingido! Vidas: %d", jogo.Vidas)
-
-			if jogo.Vidas <= 0 {
-				jogo.StatusMsg = "GAME OVER! Pressione ESC para sair"
-				jogo.GameOver = true
+		if inimigo.X == nx && inimigo.Y == ny {
+			jogo.Vida--
+			jogo.StatusMsg = fmt.Sprintf("Você foi atingido! Vida restante: %d", jogo.Vida)
+			if jogo.Vida <= 0 {
+				jogo.StatusMsg = "💀 GAME OVER"
+				return
 			}
-			return true
 		}
 	}
 
@@ -39,8 +37,6 @@ func personagemMover(tecla rune, jogo *Jogo) bool {
 		jogoMoverElemento(jogo, jogo.PosX, jogo.PosY, dx, dy)
 		jogo.PosX, jogo.PosY = nx, ny
 	}
-
-	return true
 }
 
 // Define o que ocorre quando o jogador pressiona a tecla de interação

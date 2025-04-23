@@ -6,8 +6,6 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/nsf/termbox-go"
 )
 
@@ -16,15 +14,27 @@ type Cor = termbox.Attribute
 
 // Definições de cores utilizadas no jogo
 const (
-	CorPadrao      Cor = termbox.ColorDefault
-	CorCinzaEscuro     = termbox.ColorDarkGray
-	CorVermelho        = termbox.ColorRed
-	CorVerde           = termbox.ColorGreen
-	CorParede          = termbox.ColorBlack | termbox.AttrBold | termbox.AttrDim
-	CorFundoParede     = termbox.ColorDarkGray
-	CorTexto           = termbox.ColorDarkGray
-	CorAmarelo         = termbox.ColorYellow
-	CorAzul            = termbox.ColorBlue
+	CorPadrao   Cor = termbox.ColorDefault
+	CorPreto        = termbox.ColorBlack
+	CorVermelho     = termbox.ColorRed
+	CorVerde        = termbox.ColorGreen
+	CorAmarelo      = termbox.ColorYellow
+	CorAzul         = termbox.ColorBlue
+	CorMagenta      = termbox.ColorMagenta
+	CorCiano        = termbox.ColorCyan
+	CorBranco       = termbox.ColorWhite
+
+	// Personalizações
+	CorCinzaEscuro = termbox.ColorDarkGray
+	CorTexto       = termbox.ColorDarkGray
+	CorParede      = termbox.ColorBlack | termbox.AttrBold | termbox.AttrDim
+	CorFundoParede = termbox.ColorDarkGray
+
+	// Atributos de estilo (podem ser usados junto das cores)
+	AttrNegrito    = termbox.AttrBold
+	AttrSublinhado = termbox.AttrUnderline
+	AttrPiscando   = termbox.AttrBlink // (se suportado pelo terminal)
+	AttrInverso    = termbox.AttrReverse
 )
 
 // EventoTeclado representa uma ação detectada do teclado (como mover, sair ou interagir)
@@ -69,37 +79,20 @@ func interfaceLerEventoTeclado() EventoTeclado {
 func interfaceDesenharJogo(jogo *Jogo) {
 	interfaceLimparTela()
 
-	// Desenha mapa
+	// Desenha todos os elementos do mapa
 	for y, linha := range jogo.Mapa {
 		for x, elem := range linha {
 			interfaceDesenharElemento(x, y, elem)
 		}
 	}
 
-	// Desenha personagem e inimigos
+	// Desenha o personagem sobre o mapa
 	interfaceDesenharElemento(jogo.PosX, jogo.PosY, Personagem)
-	for _, inimigo := range jogo.Inimigos {
-		if inimigo.Ativo {
-			interfaceDesenharElemento(inimigo.X, inimigo.Y, Inimigo)
-		}
-	}
 
-	// Desenha HUD (vidas e status)
-	vidaStr := fmt.Sprintf("Vidas: %d", jogo.Vidas)
-	for i, c := range vidaStr {
-		termbox.SetCell(i, len(jogo.Mapa)+1, c, CorVermelho, CorPadrao)
-	}
+	// Desenha a barra de status
+	interfaceDesenharBarraDeStatus(jogo)
 
-	for i, c := range jogo.StatusMsg {
-		termbox.SetCell(i, len(jogo.Mapa)+2, c, CorTexto, CorPadrao)
-	}
-
-	// Instruções
-	msg := "WASD: Mover | ESC: Sair"
-	for i, c := range msg {
-		termbox.SetCell(i, len(jogo.Mapa)+4, c, CorTexto, CorPadrao)
-	}
-
+	// Força a atualização do terminal
 	interfaceAtualizarTela()
 }
 
@@ -123,6 +116,17 @@ func interfaceDesenharBarraDeStatus(jogo *Jogo) {
 	// Linha de status dinâmica
 	for i, c := range jogo.StatusMsg {
 		termbox.SetCell(i, len(jogo.Mapa)+1, c, CorTexto, CorPadrao)
+	}
+
+	// Desenhar corações da vida (♥♥♥)
+	for i := 0; i < 3; i++ {
+		coracao := '♥'
+		cor := CorVermelho
+		if i >= jogo.Vida {
+			coracao = '♡' // coração vazio
+			cor = CorTexto
+		}
+		termbox.SetCell(70+i*2, len(jogo.Mapa)+1, coracao, cor, CorPadrao)
 	}
 
 	// Instruções fixas

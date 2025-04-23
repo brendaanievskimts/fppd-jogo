@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
-	"strconv"
 	"sync"
 	"time"
 )
@@ -27,8 +26,8 @@ type Jogo struct {
 	UltimoVisitado Elemento     // elemento que estava na posição do personagem antes de mover
 	StatusMsg      string       // mensagem para a barra de status
 	Inimigos       []*Inimigos  // Agora usamos um slice de ponteiros para Inimigo
-	Vidas          int
-	GameOver       bool
+	Vida           int
+	UltimoDano     time.Time
 }
 
 type Inimigos struct {
@@ -44,18 +43,14 @@ var (
 	Vegetacao  = Elemento{'♣', CorVerde, CorPadrao, false}
 	Vazio      = Elemento{' ', CorPadrao, CorPadrao, false}
 	Armadilha  = Elemento{'X', CorAmarelo, CorPadrao, true}
-	ItemCura   = Elemento{'♥', CorAzul, CorPadrao, false}
+	Coracao    = Elemento{'♡', CorVermelho, CorPadrao, true}
 )
 
 // Cria e retorna uma nova instância do jogo
 func jogoNovo() Jogo {
 	// O ultimo elemento visitado é inicializado como vazio
 	// pois o jogo começa com o personagem em uma posição vazia
-	return Jogo{
-		UltimoVisitado: Vazio,
-		Vidas:          3,
-		GameOver:       false,
-	}
+	return Jogo{UltimoVisitado: Vazio, Vida: 3, UltimoDano: time.Now().Add(-10 * time.Second)}
 }
 
 // Lê um arquivo texto linha por linha e constrói o mapa do jogo
@@ -76,25 +71,27 @@ func jogoCarregarMapa(nome string, jogo *Jogo) error {
 		var linhaElems []Elemento
 
 		for x, ch := range linha {
-			elem := Vazio
+			elem := Vazio // Valor padrão
+
 			switch ch {
 			case Parede.simbolo:
 				elem = Parede
 			case Inimigo.simbolo:
+				// Adiciona novo inimigo à lista
 				jogo.Inimigos = append(jogo.Inimigos, &Inimigos{X: x, Y: y, Ativo: true})
-				elem = Vazio
+				elem = Vazio // Não coloca o inimigo no mapa inicial
 			case Vegetacao.simbolo:
 				elem = Vegetacao
 			case Armadilha.simbolo:
 				elem = Armadilha
 			case Personagem.simbolo:
 				jogo.PosX, jogo.PosY = x, y
-				elem = Vazio
-			case ItemCura.simbolo:
-				elem = ItemCura
+				elem = Vazio // Personagem é desenhado separadamente
 			}
+
 			linhaElems = append(linhaElems, elem)
 		}
+
 		jogo.Mapa = append(jogo.Mapa, linhaElems)
 		y++
 	}
@@ -103,6 +100,7 @@ func jogoCarregarMapa(nome string, jogo *Jogo) error {
 		return fmt.Errorf("erro ao ler mapa: %v", err)
 	}
 
+	// Verificação básica
 	if len(jogo.Mapa) == 0 {
 		return fmt.Errorf("mapa vazio")
 	}
@@ -128,81 +126,85 @@ func jogoMoverElemento(jogo *Jogo, x, y, dx, dy int) {
 
 	nx, ny := x+dx, y+dy
 
-	// Preserva vegetação ao mover
-	elementoOriginal := jogo.Mapa[ny][nx]
-	if elementoOriginal.simbolo == Vegetacao.simbolo {
-		jogo.UltimoVisitado = Vegetacao
-	} else {
-		jogo.UltimoVisitado = Vazio
-	}
+	// Obtem elemento atual na posição
+	elemento := jogo.Mapa[y][x] // guarda o conteúdo atual da posição
 
-	// Move o elemento
-	jogo.Mapa[y][x] = jogo.UltimoVisitado
-	jogo.UltimoVisitado = jogo.Mapa[ny][nx]
-	jogo.Mapa[ny][nx] = Inimigo // Mantém o símbolo do inimigo
+	jogo.Mapa[y][x] = jogo.UltimoVisitado   // restaura o conteúdo anterior
+	jogo.UltimoVisitado = jogo.Mapa[ny][nx] // guarda o conteúdo atual da nova posição
+	jogo.Mapa[ny][nx] = elemento            // move o elemento
 }
 
 // Move-se aleatoriamente pelo mapa e persegue o jogador se estiver próximo
-// Move-se aleatoriamente pelo mapa e persegue o jogador se estiver próximo
 func inimigoPatrulhar(jogo *Jogo, posicaoJogador chan [2]int, done chan struct{}, inimigo *Inimigos) {
-	ticker := time.NewTicker(500 * time.Millisecond)
-	defer ticker.Stop()
+	timeout := time.NewTicker(500 * time.Millisecond)
+	defer timeout.Stop()
 
 	for {
 		select {
-		case <-done:
-			jogo.Mutex.Lock()
-			inimigo.Ativo = false
-			jogo.Mutex.Unlock()
-			return
-
-		case <-ticker.C:
+		case pos := <-posicaoJogador:
 			if !inimigo.Ativo {
 				continue
 			}
-			// Movimento aleatório
+
+			// Cálculo de direção (corrigido)
+			dx := 0
+			dy := 0
+
+			if pos[0] < inimigo.X {
+				dx = -1
+			} else if pos[0] > inimigo.X {
+				dx = 1
+			}
+
+			if pos[1] < inimigo.Y {
+				dy = -1
+			} else if pos[1] > inimigo.Y {
+				dy = 1
+			}
+
 			jogo.Mutex.Lock()
+			novaX, novaY := inimigo.X+dx, inimigo.Y+dy
+
+			if novaX >= 0 && novaX < len(jogo.Mapa[0]) &&
+				novaY >= 0 && novaY < len(jogo.Mapa) &&
+				!jogo.Mapa[novaY][novaX].tangivel {
+
+				// Atualiza mapa
+				jogo.Mapa[inimigo.Y][inimigo.X] = Vazio
+				inimigo.X, inimigo.Y = novaX, novaY
+				jogo.Mapa[inimigo.Y][inimigo.X] = Inimigo
+			}
+			jogo.Mutex.Unlock()
+
+		case <-timeout.C:
+			if !inimigo.Ativo {
+				continue
+			}
+
+			jogo.Mutex.Lock()
+			// Movimento aleatório válido
 			for tentativa := 0; tentativa < 5; tentativa++ {
-				dx, dy := rand.Intn(3)-1, rand.Intn(3)-1
+				dx, dy := rand.Intn(3)-1, rand.Intn(3)-1 // -1, 0, ou 1
 				novaX, novaY := inimigo.X+dx, inimigo.Y+dy
+
 				if novaX >= 0 && novaX < len(jogo.Mapa[0]) &&
 					novaY >= 0 && novaY < len(jogo.Mapa) &&
-					jogoPodeMoverPara(jogo, novaX, novaY) {
+					!jogo.Mapa[novaY][novaX].tangivel {
+
+					jogo.Mapa[inimigo.Y][inimigo.X] = Vazio
 					inimigo.X, inimigo.Y = novaX, novaY
+					jogo.Mapa[inimigo.Y][inimigo.X] = Inimigo
 					break
 				}
 			}
 			jogo.Mutex.Unlock()
 
-			// Verifica posição do jogador (não bloqueante)
-			select {
-			case pos, ok := <-posicaoJogador:
-				if !ok || !inimigo.Ativo {
-					continue
-				}
-				if estaProximo(pos, inimigo.X, inimigo.Y) {
-					jogo.Mutex.Lock()
-					dx, dy := 0, 0
-					if pos[0] < inimigo.X {
-						dx = -1
-					} else if pos[0] > inimigo.X {
-						dx = 1
-					}
-					if pos[1] < inimigo.Y {
-						dy = -1
-					} else if pos[1] > inimigo.Y {
-						dy = 1
-					}
-					novaX, novaY := inimigo.X+dx, inimigo.Y+dy
-					if novaX >= 0 && novaX < len(jogo.Mapa[0]) &&
-						novaY >= 0 && novaY < len(jogo.Mapa) &&
-						jogoPodeMoverPara(jogo, novaX, novaY) {
-						inimigo.X, inimigo.Y = novaX, novaY
-					}
-					jogo.Mutex.Unlock()
-				}
-			default:
-			}
+		case <-done:
+			jogo.Mutex.Lock()
+			inimigo.Ativo = false
+			jogo.Mapa[inimigo.Y][inimigo.X] = Vazio
+			jogo.Mutex.Unlock()
+			return
 		}
 	}
 }
@@ -213,51 +215,6 @@ func estaProximo(posJogador [2]int, x, y int) bool {
 	return dx*dx+dy*dy <= 25 // Distância <= 5 células (raio quadrado)
 }
 
-// Aparece e desaparece em intervalos aleatórios.
-func itemCura(jogo *Jogo, done <-chan struct{}) {
-	for {
-		select {
-		case <-time.After(time.Duration(rand.Intn(15)+10) * time.Second): // 10-25 segundos
-			jogo.Mutex.Lock()
-
-			// Lista de posições válidas (vazias e não próximas ao jogador)
-			var posicoesValidas [][2]int
-			for y := range jogo.Mapa {
-				for x := range jogo.Mapa[y] {
-					if jogo.Mapa[y][x].simbolo == Vazio.simbolo {
-						// Verifica distância do jogador
-						dx := x - jogo.PosX
-						dy := y - jogo.PosY
-						if dx*dx+dy*dy > 16 { // Pelo menos 4 células de distância
-							posicoesValidas = append(posicoesValidas, [2]int{x, y})
-						}
-					}
-				}
-			}
-
-			if len(posicoesValidas) > 0 {
-				pos := posicoesValidas[rand.Intn(len(posicoesValidas))]
-				jogo.Mapa[pos[1]][pos[0]] = ItemCura
-				jogo.StatusMsg = "Item de cura apareceu em (" + strconv.Itoa(pos[0]) + "," + strconv.Itoa(pos[1]) + ")"
-
-				// Desaparece após 5 segundos
-				time.AfterFunc(5*time.Second, func() {
-					jogo.Mutex.Lock()
-					if jogo.Mapa[pos[1]][pos[0]].simbolo == ItemCura.simbolo {
-						jogo.Mapa[pos[1]][pos[0]] = Vazio
-					}
-					jogo.Mutex.Unlock()
-				})
-			}
-
-			jogo.Mutex.Unlock()
-
-		case <-done:
-			return
-		}
-	}
-}
-
 // Ativa-se quando o jogador passa próximo e desativa após 3 segundos.
 // Usa um canal para notificar o jogador (ex: "Você caiu em uma armadilha!").
 func armadilha(jogo *Jogo, ativar <-chan bool, done <-chan struct{}) {
@@ -265,16 +222,14 @@ func armadilha(jogo *Jogo, ativar <-chan bool, done <-chan struct{}) {
 
 	for {
 		select {
-		case ativacao, ok := <-ativar:
-			if !ok {
-				return
-			}
-			if !armadilhaAtiva && ativacao {
+		case ativacao := <-ativar:
+			if !armadilhaAtiva && ativacao { // Só ativa se não estiver já ativa
 				jogo.Mutex.Lock()
+				// Encontra todas as armadilhas no mapa
 				for y := range jogo.Mapa {
 					for x := range jogo.Mapa[y] {
 						if jogo.Mapa[y][x].simbolo == Armadilha.simbolo {
-							jogo.Mutex[y][x].simbolo = '!'
+							jogo.Mapa[y][x].simbolo = '!'
 							jogo.Mapa[y][x].cor = CorVermelho
 						}
 					}
@@ -283,6 +238,7 @@ func armadilha(jogo *Jogo, ativar <-chan bool, done <-chan struct{}) {
 				jogo.StatusMsg = "Armadilha ativada!"
 				jogo.Mutex.Unlock()
 
+				// Desativa após 3 segundos
 				time.AfterFunc(3*time.Second, func() {
 					jogo.Mutex.Lock()
 					defer jogo.Mutex.Unlock()
@@ -295,7 +251,6 @@ func armadilha(jogo *Jogo, ativar <-chan bool, done <-chan struct{}) {
 						}
 					}
 					armadilhaAtiva = false
-					jogo.StatusMsg = ""
 				})
 			}
 
