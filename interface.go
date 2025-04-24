@@ -116,7 +116,7 @@ func interfaceDesenharElemento(x, y int, elem Elemento) {
 func interfaceDesenharBarraDeStatus(jogo *Jogo) {
 	// Linha de status dinâmica
 
-	status := fmt.Sprintf("%s | Veg: %d | Tempo: %ds",
+	status := fmt.Sprintf("%s | Mato: %d | Tempo: %ds",
 		jogo.StatusMsg, jogo.VegetacoesColetadas, jogo.TempoRestante)
 
 	for i, c := range status {

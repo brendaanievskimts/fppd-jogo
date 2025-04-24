@@ -17,6 +17,14 @@ type Elemento struct {
 	corFundo Cor
 	tangivel bool // Indica se o elemento bloqueia passagem
 }
+type Inimigos struct {
+	X, Y  int
+	Ativo bool
+}
+type AlienMovel struct {
+	X, Y     int
+	Subindo  bool
+}
 
 // Jogo contém o estado atual do jogo
 type Jogo struct {
@@ -32,11 +40,7 @@ type Jogo struct {
 	TempoRestante       int
 	VegChan             chan int // Canal para comunicação de vegetações coletadas
 	GameOver            bool
-}
-
-type Inimigos struct {
-	X, Y  int
-	Ativo bool
+	Aliens				[]AlienMovel
 }
 
 // Elementos visuais do jogo
@@ -48,6 +52,7 @@ var (
 	Vazio      = Elemento{' ', CorPadrao, CorPadrao, false}
 	Armadilha  = Elemento{'X', CorAmarelo, CorPadrao, true}
 	Coracao    = Elemento{'♡', CorVermelho, CorPadrao, true}
+	Alien      = Elemento{'Ψ', CorCiano, CorPadrao, true}
 )
 
 // Cria e retorna uma nova instância do jogo
@@ -88,6 +93,11 @@ func jogoCarregarMapa(nome string, jogo *Jogo) error {
 				elem = Vegetacao
 			case Armadilha.simbolo:
 				elem = Armadilha
+			case Alien.simbolo:
+				jogo.Aliens = append(jogo.Aliens, AlienMovel{
+					X: x, Y: y, Subindo: true,
+				})
+				elem = Vazio	
 			case Personagem.simbolo:
 				jogo.PosX, jogo.PosY = x, y
 				elem = Vazio // Personagem é desenhado separadamente
@@ -210,6 +220,7 @@ func inimigoPatrulhar(jogo *Jogo, posicaoJogador chan [2]int, done chan struct{}
 			jogo.Mutex.Unlock()
 			return
 		}
+		
 	}
 }
 
@@ -279,7 +290,7 @@ func jogadorPertoDeArmadilha(jogo *Jogo, x, y int) bool {
 }
 
 func timerJogo(jogo *Jogo, done chan struct{}) {
-	timeout := time.After(30 * time.Second)
+	timeout := time.After(60 * time.Second)
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
@@ -294,10 +305,56 @@ func timerJogo(jogo *Jogo, done chan struct{}) {
 			jogo.GameOver = true
 			jogo.StatusMsg = fmt.Sprintf("Tempo esgotado! Vegetacoes coletadas: %d", jogo.VegetacoesColetadas)
 			jogo.Mutex.Unlock()
-			close(done)
-			return
-		case <-done:
 			return
 		}
 	}
 }
+
+func moverAlien(alien *AlienMovel, jogo *Jogo) {
+	jogo.Mutex.Lock()
+	defer jogo.Mutex.Unlock()
+
+	dy := 1
+	if !alien.Subindo {
+		dy = -1
+	}
+	nx := alien.X
+	ny := alien.Y + dy
+
+	// Verifica se está dentro dos limites do mapa
+	if ny < 0 || ny >= len(jogo.Mapa) || nx < 0 || nx >= len(jogo.Mapa[ny]) {
+		alien.Subindo = !alien.Subindo
+		return
+	}
+
+	// Colisão com o jogador
+	if nx == jogo.PosX && ny == jogo.PosY {
+		if time.Since(jogo.UltimoDano) > time.Second {
+			jogo.Vida--
+			jogo.UltimoDano = time.Now()
+			jogo.StatusMsg = fmt.Sprintf("Ψ Alien te atingiu! Vida: %d", jogo.Vida)
+			if jogo.Vida <= 0 {
+				jogo.GameOver = true
+				jogo.StatusMsg = "Você foi derrotado pelo Alien!"
+			}
+		}
+		return
+	}
+	
+
+	// Impede movimento para paredes
+	if jogo.Mapa[ny][nx].tangivel {
+		alien.Subindo = !alien.Subindo
+		return
+	}
+
+	// Move o alien
+	jogo.Mapa[alien.Y][alien.X] = Vazio
+	jogo.Mapa[ny][nx] = Alien
+	alien.X = nx
+	alien.Y = ny
+}
+
+
+
+
