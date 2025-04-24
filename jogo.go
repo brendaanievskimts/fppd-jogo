@@ -53,6 +53,8 @@ var (
 	Armadilha  = Elemento{'X', CorAmarelo, CorPadrao, true}
 	Coracao    = Elemento{'♡', CorVermelho, CorPadrao, true}
 	Alien      = Elemento{'Ψ', CorCiano, CorPadrao, true}
+	ArmadilhaAtivada = Elemento{'█', CorVermelho, CorPadrao, true}
+	ArmadilhaAlerta  = Elemento{'!', CorVermelho | AttrNegrito, CorPreto, true}
 )
 
 // Cria e retorna uma nova instância do jogo
@@ -130,8 +132,9 @@ func jogoPodeMoverPara(jogo *Jogo, x, y int) bool {
 	if y < 0 || y >= len(jogo.Mapa) || x < 0 || x >= len(jogo.Mapa[y]) {
 		return false
 	}
-	return !jogo.Mapa[y][x].tangivel && jogo.Mapa[y][x].simbolo != Inimigo.simbolo
+	return !jogo.Mapa[y][x].tangivel && jogo.Mapa[y][x].simbolo != Inimigo.simbolo 
 }
+
 
 // Move um elemento para a nova posição
 func jogoMoverElemento(jogo *Jogo, x, y, dx, dy int) {
@@ -233,60 +236,50 @@ func estaProximo(posJogador [2]int, x, y int) bool {
 // Ativa-se quando o jogador passa próximo e desativa após 3 segundos.
 // Usa um canal para notificar o jogador (ex: "Você caiu em uma armadilha!").
 func armadilha(jogo *Jogo, ativar <-chan bool, done <-chan struct{}) {
-	var armadilhaAtiva bool
+    posEntrada := [2]int{58, 22} // Posição fixa da entrada
+    var alertaAtivo bool
+    
+    for {
+        select {
+        case ativacao := <-ativar:
+            jogo.Mutex.Lock()
+            
+            if ativacao && !alertaAtivo {
+                // Fase 1: Alerta (muda X para !)
+                for y := range jogo.Mapa {
+                    for x := range jogo.Mapa[y] {
+                        if jogo.Mapa[y][x].simbolo == Armadilha.simbolo {
+                            jogo.Mapa[y][x] = ArmadilhaAlerta
+                        }
+                    }
+                }
+                alertaAtivo = true
+                jogo.StatusMsg = "ALERTA! Armadilha detectada nas proximidades!"
+                
+                // Fase 2: Fechamento permanente após 2 segundos
+                time.AfterFunc(2*time.Second, func() {
+                    jogo.Mutex.Lock()
+                    defer jogo.Mutex.Unlock()
+                    
+                    // Fecha a entrada permanentemente
+                    if jogo.Mapa[posEntrada[1]][posEntrada[0]].simbolo != ArmadilhaAtivada.simbolo {
+                        jogo.Mapa[posEntrada[1]][posEntrada[0]] = ArmadilhaAtivada
+                        jogo.StatusMsg = "BARULHO! A entrada (58,22) foi selada permanentemente!"
+                    }
+                })
+            }
+            
+            jogo.Mutex.Unlock()
 
-	for {
-		select {
-		case ativacao := <-ativar:
-			if !armadilhaAtiva && ativacao { // Só ativa se não estiver já ativa
-				jogo.Mutex.Lock()
-				// Encontra todas as armadilhas no mapa
-				for y := range jogo.Mapa {
-					for x := range jogo.Mapa[y] {
-						if jogo.Mapa[y][x].simbolo == Armadilha.simbolo {
-							jogo.Mapa[y][x].simbolo = '!'
-							jogo.Mapa[y][x].cor = CorVermelho
-						}
-					}
-				}
-				armadilhaAtiva = true
-				jogo.StatusMsg = "Armadilha ativada!"
-				jogo.Mutex.Unlock()
-
-				// Desativa após 3 segundos
-				time.AfterFunc(3*time.Second, func() {
-					jogo.Mutex.Lock()
-					defer jogo.Mutex.Unlock()
-					for y := range jogo.Mapa {
-						for x := range jogo.Mapa[y] {
-							if jogo.Mapa[y][x].simbolo == '!' {
-								jogo.Mapa[y][x].simbolo = Armadilha.simbolo
-								jogo.Mapa[y][x].cor = CorAmarelo
-							}
-						}
-					}
-					armadilhaAtiva = false
-				})
-			}
-
-		case <-done:
-			return
-		}
-	}
+        case <-done:
+            return
+        }
+    }
 }
 
 func jogadorPertoDeArmadilha(jogo *Jogo, x, y int) bool {
-	for dy := -2; dy <= 2; dy++ {
-		for dx := -2; dx <= 2; dx++ {
-			nx, ny := x+dx, y+dy
-			if ny >= 0 && ny < len(jogo.Mapa) && nx >= 0 && nx < len(jogo.Mapa[ny]) {
-				if jogo.Mapa[ny][nx].simbolo == Armadilha.simbolo {
-					return true
-				}
-			}
-		}
-	}
-	return false
+    // Verifica em um retângulo ao redor da posição (58,22)
+    return x >= 55 && x <= 61 && y >= 19 && y <= 25
 }
 
 func timerJogo(jogo *Jogo, done chan struct{}) {
