@@ -88,18 +88,6 @@ func main() {
 		}(alien)
 	}
 	
-	
-
-
-	// No loop de desenho, adicione:
-	//for _, inimigo := range jogo.Inimigos {
-	//	if inimigo.Ativo {
-	//		interfaceDesenharElemento(inimigo.X, inimigo.Y, Inimigo)
-	//	}
-	//}
-	//go armadilha(&jogo, ativarArmadilha, done)
-
-	// Loop principal
 	for {
 		jogo.Mutex.Lock()
 		gameOver := jogo.GameOver
