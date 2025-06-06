@@ -1,13 +1,10 @@
 // personagem.go - Funções para movimentação e ações do personagem
 package main
 
-import (
-	"fmt"
-	"time"
-)
+import "fmt"
 
 // Atualiza a posição do personagem com base na tecla pressionada (WASD)
-func personagemMover(tecla rune, jogo *Jogo) {
+func inimigoMover(tecla rune, jogo *Jogo) {
 	dx, dy := 0, 0
 	switch tecla {
 	case 'w':
@@ -22,13 +19,8 @@ func personagemMover(tecla rune, jogo *Jogo) {
 
 	nx, ny := jogo.PosX+dx, jogo.PosY+dy
 
-	// Verifica colisão com vegetação
-	verificaColisaoVegetacao(jogo, nx, ny)
-
-	// Verifica colisão com inimigos
-	if jogo.VerificaColisaoInimigo(nx, ny) {
-		return
-	}
+	// Verifica colisão com personagem
+	verificaColisaoPersonagem(jogo, nx, ny)
 
 	// Verifica se o movimento é permitido e realiza a movimentação
 	if jogoPodeMoverPara(jogo, nx, ny) {
@@ -40,13 +32,13 @@ func personagemMover(tecla rune, jogo *Jogo) {
 // Define o que ocorre quando o jogador pressiona a tecla de interação
 // Neste exemplo, apenas exibe uma mensagem de status
 // Você pode expandir essa função para incluir lógica de interação com objetos
-func personagemInteragir(jogo *Jogo) {
+func inimigoInteragir(jogo *Jogo) {
 	// Atualmente apenas exibe uma mensagem de status
 	jogo.StatusMsg = fmt.Sprintf("Interagindo em (%d, %d)", jogo.PosX, jogo.PosY)
 }
 
 // Processa o evento do teclado e executa a ação correspondente
-func personagemExecutarAcao(ev EventoTeclado, jogo *Jogo) bool {
+func inimigoExecutarAcao(ev EventoTeclado, jogo *Jogo) bool {
 	switch ev.Tipo {
 	case "sair":
 		// Retorna false para indicar que o jogo deve terminar
@@ -61,7 +53,7 @@ func personagemExecutarAcao(ev EventoTeclado, jogo *Jogo) bool {
 	return true // Continua o jogo
 }
 
-func verificaColisaoVegetacao(jogo *Jogo, nx, ny int) {
+func verificaColisaoPersonagem(jogo *Jogo, nx, ny int) {
 	if jogo.Mapa[ny][nx].simbolo == Vegetacao.simbolo {
 		jogo.Mutex.Lock()
 		defer jogo.Mutex.Unlock()
@@ -74,27 +66,4 @@ func verificaColisaoVegetacao(jogo *Jogo, nx, ny int) {
 		default:
 		}
 	}
-}
-
-// Verifica se houve colisão com o inimigo e aplica dano se necessário
-func (j *Jogo) VerificaColisaoInimigo(nx, ny int) bool {
-	j.Mutex.Lock()
-	defer j.Mutex.Unlock()
-
-	if !j.Inimigos.Ativo || j.Inimigos.X != nx || j.Inimigos.Y != ny {
-		return false // Não houve colisão
-	}
-
-	// Se chegou aqui, houve colisão
-	if time.Since(j.UltimoDano) > time.Second { // Previne dano contínuo
-		j.Vida--
-		j.UltimoDano = time.Now()
-		j.StatusMsg = fmt.Sprintf("Você foi atingido! Vida restante: %d", j.Vida)
-
-		if j.Vida <= 0 {
-			j.StatusMsg = "💀 GAME OVER"
-			j.GameOver = true
-		}
-	}
-	return true // Houve colisão
 }

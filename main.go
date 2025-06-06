@@ -2,52 +2,25 @@
 package main
 
 import (
-	"fmt"
 	"os"
-	"os/exec"
-	"runtime"
 	"time"
 )
-//as duas próximas funções são pra tentar redimensionar o terminal de acordo com o tamanho do mapa
-//acho que não tão dando certo, elas fazem um script pra rodar isso
-func redimensionarTerminal(linhas, colunas int) {
-	// Verifica o sistema operacional
-	switch runtime.GOOS {
-	case "windows":
-		// Redimensiona o terminal no Windows usando a sequência ANSI
-		os.Stdout.WriteString(fmt.Sprintf("\x1b[8;%d;%dt", linhas, colunas))
-	case "linux", "darwin": // Linux e macOS
-		// Redimensiona o terminal no Linux/macOS com o comando resize
-		cmd := exec.Command("resize", "-s", fmt.Sprintf("%d", linhas), fmt.Sprintf("%d", colunas))
-		cmd.Run() // Executa o comando para redimensionar o terminal
-	default:
-		fmt.Println("Sistema operacional não suportado para redimensionamento automático.")
-	}
-}
-
-// Função para verificar e redimensionar o terminal de acordo com o mapa
-func verificarERedimensionar(mapa [][]Elemento) {
-	// Obtém o número de linhas e colunas do mapa
-	linhas := len(mapa)
-	colunas := len(mapa[0])
-
-	// Redimensiona o terminal para o tamanho do mapa
-	redimensionarTerminal(linhas, colunas)
-}
 
 func main() {
-		// Carrega o mapa
-		jogo := jogoNovo()
-		if err := jogoCarregarMapa("mapa.txt", &jogo); err != nil {
-			panic(err)
-		}
-	
-		// Redimensiona o terminal com base nas dimensões do mapa (somente uma vez)
-		verificarERedimensionar(jogo.Mapa)
-	
-		// Inicia o jogo
-		interfaceIniciar()
-		defer interfaceFinalizar()
+	jogo := jogoNovo()
+	if err := jogoCarregarMapa("mapa.txt", &jogo); err != nil {
+		panic(err)
+	}
+
+	// Inicializa a interface (termbox)
+	interfaceIniciar()
+	defer interfaceFinalizar()
+
+	// Usa "mapa.txt" como arquivo padrão ou lê o primeiro argumento
+	//mapaFile := "mapa.txt"
+	//if len(os.Args) > 1 {
+	//	mapaFile = os.Args[1]
+	//}
 
 	// Canais
 	posicaoJogador := make(chan [2]int, 10) // Buffer para 10 posições
@@ -56,18 +29,20 @@ func main() {
 	jogo.VegChan = make(chan int, 10)
 
 	// Inicia goroutines
-	for _, inimigo := range jogo.Inimigos {
-		go inimigoPatrulhar(&jogo, posicaoJogador, done, inimigo)
-	}
+	//if jogo.Inimigos != nil {
+	//	go inimigoPatrulhar(&jogo, posicaoJogador, done) // Apenas UMA goroutine para o inimigo
+	//}
 	go armadilha(&jogo, ativarArmadilha, done)
 	go timerJogo(&jogo, done)
-
 	atualizarTela := make(chan bool)
+
+	// Desenha o estado inicial do jogo
+	interfaceDesenharJogo(&jogo)
 
 	// Goroutine para redesenhar a tela periodicamente
 	go func() {
 		for {
-			<-atualizarTela // Espera pelo sinal de que é hora de desenhar
+			<-atualizarTela              // Espera pelo sinal de que é hora de desenhar
 			interfaceDesenharJogo(&jogo) // Atualiza a tela
 		}
 	}()
@@ -87,12 +62,12 @@ func main() {
 			}
 		}(alien)
 	}
-	
+
 	for {
 		jogo.Mutex.Lock()
 		gameOver := jogo.GameOver
 		jogo.Mutex.Unlock()
-	
+
 		if gameOver {
 			// Feche o canal done aqui, uma única vez
 			close(done)
@@ -123,5 +98,12 @@ func main() {
 	}
 	os.Exit(0) // Encerra o programa
 
-
+	// Loop principal de entrada
+	for {
+		evento := interfaceLerEventoTeclado()
+		if continuar := personagemExecutarAcao(evento, &jogo); !continuar {
+			break
+		}
+		interfaceDesenharJogo(&jogo)
+	}
 }
