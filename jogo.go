@@ -173,7 +173,6 @@ func armadilha(jogo *Jogo, ativar <-chan bool, done <-chan struct{}) {
 }
 
 func jogadorPertoDeArmadilha(jogo *Jogo, x, y int) bool {
-	// Verifica em um retângulo ao redor da posição (58,22)
 	return x >= 55 && x <= 61 && y >= 19 && y <= 25
 }
 

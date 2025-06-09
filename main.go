@@ -16,12 +16,6 @@ func main() {
 	interfaceIniciar()
 	defer interfaceFinalizar()
 
-	// Usa "mapa.txt" como arquivo padrão ou lê o primeiro argumento
-	//mapaFile := "mapa.txt"
-	//if len(os.Args) > 1 {
-	//	mapaFile = os.Args[1]
-	//}
-
 	// Canais
 	posicaoJogador := make(chan [2]int, 10) // Buffer para 10 posições
 	done := make(chan struct{})
