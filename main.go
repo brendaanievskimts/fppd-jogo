@@ -47,22 +47,6 @@ func main() {
 		}
 	}()
 
-	for i := range jogo.Aliens {
-		alien := &jogo.Aliens[i]
-		go func(alien *AlienMovel) {
-			for {
-				select {
-				case <-done:
-					return
-				default:
-					moverAlien(alien, &jogo)
-					atualizarTela <- true
-					time.Sleep(300 * time.Millisecond)
-				}
-			}
-		}(alien)
-	}
-
 	for {
 		jogo.Mutex.Lock()
 		gameOver := jogo.GameOver

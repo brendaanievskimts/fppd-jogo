@@ -17,14 +17,6 @@ type Elemento struct {
 	tangivel bool // Indica se o elemento bloqueia passagem
 }
 
-type Inimigos struct {
-	X, Y  int
-	Ativo bool
-}
-type AlienMovel struct {
-	X, Y    int
-	Subindo bool
-}
 
 // Jogo contém o estado atual do jogo
 type Jogo struct {
@@ -33,14 +25,12 @@ type Jogo struct {
 	PosX, PosY          int          // posição atual do personagem
 	UltimoVisitado      Elemento     // elemento que estava na posição do personagem antes de mover
 	StatusMsg           string       // mensagem para a barra de status
-	Inimigos            *Inimigos    // Agora usamos um slice de ponteiros para Inimigo
 	Vida                int
 	UltimoDano          time.Time
 	VegetacoesColetadas int
 	TempoRestante       int
 	VegChan             chan int // Canal para comunicação de vegetações coletadas
 	GameOver            bool
-	Aliens              []AlienMovel
 }
 
 // Elementos visuais do jogo
@@ -52,7 +42,6 @@ var (
 	Vazio            = Elemento{' ', CorPadrao, CorPadrao, false}
 	Armadilha        = Elemento{'X', CorAmarelo, CorPadrao, true}
 	Coracao          = Elemento{'♡', CorVermelho, CorPadrao, true}
-	Alien            = Elemento{'Ψ', CorCiano, CorPadrao, true}
 	ArmadilhaAtivada = Elemento{'█', CorVermelho, CorPadrao, true}
 	ArmadilhaAlerta  = Elemento{'!', CorVermelho | AttrNegrito, CorPreto, true}
 )
@@ -82,9 +71,6 @@ func jogoCarregarMapa(nome string, jogo *Jogo) error {
 			switch ch {
 			case Parede.simbolo:
 				e = Parede
-			case Inimigo.simbolo:
-				jogo.Inimigos = &Inimigos{X: x, Y: y, Ativo: true}
-				e = Vazio
 			case Vegetacao.simbolo:
 				e = Vegetacao
 			case Personagem.simbolo:
@@ -92,11 +78,6 @@ func jogoCarregarMapa(nome string, jogo *Jogo) error {
 				e = Vazio // Personagem é desenhado separadamente
 			case Armadilha.simbolo:
 				e = Armadilha
-			case Alien.simbolo:
-				jogo.Aliens = append(jogo.Aliens, AlienMovel{
-					X: x, Y: y, Subindo: true,
-				})
-				e = Vazio
 			}
 
 			linhaElems = append(linhaElems, e)
@@ -215,48 +196,4 @@ func timerJogo(jogo *Jogo, done chan struct{}) {
 			return
 		}
 	}
-}
-
-func moverAlien(alien *AlienMovel, jogo *Jogo) {
-	jogo.Mutex.Lock()
-	defer jogo.Mutex.Unlock()
-
-	dy := 1
-	if !alien.Subindo {
-		dy = -1
-	}
-	nx := alien.X
-	ny := alien.Y + dy
-
-	// Verifica se está dentro dos limites do mapa
-	if ny < 0 || ny >= len(jogo.Mapa) || nx < 0 || nx >= len(jogo.Mapa[ny]) {
-		alien.Subindo = !alien.Subindo
-		return
-	}
-
-	// Colisão com o jogador
-	if nx == jogo.PosX && ny == jogo.PosY {
-		if time.Since(jogo.UltimoDano) > time.Second {
-			jogo.Vida--
-			jogo.UltimoDano = time.Now()
-			jogo.StatusMsg = fmt.Sprintf("Ψ Alien te atingiu! Vida: %d", jogo.Vida)
-			if jogo.Vida <= 0 {
-				jogo.GameOver = true
-				jogo.StatusMsg = "Você foi derrotado pelo Alien!"
-			}
-		}
-		return
-	}
-
-	// Impede movimento para paredes
-	if jogo.Mapa[ny][nx].tangivel {
-		alien.Subindo = !alien.Subindo
-		return
-	}
-
-	// Move o alien
-	jogo.Mapa[alien.Y][alien.X] = Vazio
-	jogo.Mapa[ny][nx] = Alien
-	alien.X = nx
-	alien.Y = ny
 }

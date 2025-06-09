@@ -3,10 +3,8 @@ package main
 
 import (
 	"fmt"
-	"time"
 )
 
-// Atualiza a posição do personagem com base na tecla pressionada (WASD)
 func personagemMover(tecla rune, jogo *Jogo) {
 	dx, dy := 0, 0
 	switch tecla {
@@ -21,27 +19,13 @@ func personagemMover(tecla rune, jogo *Jogo) {
 	}
 
 	nx, ny := jogo.PosX+dx, jogo.PosY+dy
-
-	// Verifica colisão com vegetação
 	verificaColisaoVegetacao(jogo, nx, ny)
-
-	// Verifica colisão com inimigos
-	if jogo.VerificaColisaoInimigo(nx, ny) {
-		return
-	}
-
-	// Verifica se o movimento é permitido e realiza a movimentação
 	if jogoPodeMoverPara(jogo, nx, ny) {
 		jogoMoverElemento(jogo, jogo.PosX, jogo.PosY, dx, dy)
 		jogo.PosX, jogo.PosY = nx, ny
 	}
 }
-
-// Define o que ocorre quando o jogador pressiona a tecla de interação
-// Neste exemplo, apenas exibe uma mensagem de status
-// Você pode expandir essa função para incluir lógica de interação com objetos
 func personagemInteragir(jogo *Jogo) {
-	// Atualmente apenas exibe uma mensagem de status
 	jogo.StatusMsg = fmt.Sprintf("Interagindo em (%d, %d)", jogo.PosX, jogo.PosY)
 }
 
@@ -74,27 +58,4 @@ func verificaColisaoVegetacao(jogo *Jogo, nx, ny int) {
 		default:
 		}
 	}
-}
-
-// Verifica se houve colisão com o inimigo e aplica dano se necessário
-func (j *Jogo) VerificaColisaoInimigo(nx, ny int) bool {
-	j.Mutex.Lock()
-	defer j.Mutex.Unlock()
-
-	if !j.Inimigos.Ativo || j.Inimigos.X != nx || j.Inimigos.Y != ny {
-		return false // Não houve colisão
-	}
-
-	// Se chegou aqui, houve colisão
-	if time.Since(j.UltimoDano) > time.Second { // Previne dano contínuo
-		j.Vida--
-		j.UltimoDano = time.Now()
-		j.StatusMsg = fmt.Sprintf("Você foi atingido! Vida restante: %d", j.Vida)
-
-		if j.Vida <= 0 {
-			j.StatusMsg = "💀 GAME OVER"
-			j.GameOver = true
-		}
-	}
-	return true // Houve colisão
 }
