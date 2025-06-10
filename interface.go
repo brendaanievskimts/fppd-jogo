@@ -1,7 +1,5 @@
 // interface.go - Interface gráfica do jogo usando termbox
 // O código abaixo implementa a interface gráfica do jogo usando a biblioteca termbox-go.
-// A biblioteca termbox-go é uma biblioteca de interface de terminal que permite desenhar
-// elementos na tela, capturar eventos do teclado e gerenciar a aparência do terminal.
 
 package main
 
@@ -16,27 +14,23 @@ type Cor = termbox.Attribute
 
 // Definições de cores utilizadas no jogo
 const (
-	CorPadrao   Cor = termbox.ColorDefault
-	CorPreto        = termbox.ColorBlack
-	CorVermelho     = termbox.ColorRed
-	CorVerde        = termbox.ColorGreen
-	CorAmarelo      = termbox.ColorYellow
-	CorAzul         = termbox.ColorBlue
-	CorMagenta      = termbox.ColorMagenta
-	CorCiano        = termbox.ColorCyan
-	CorBranco       = termbox.ColorWhite
-
-	// Personalizações
-	CorCinzaEscuro = termbox.ColorDarkGray
-	CorTexto       = termbox.ColorDarkGray
-	CorParede      = termbox.ColorBlack | termbox.AttrBold | termbox.AttrDim
-	CorFundoParede = termbox.ColorDarkGray
-
-	// Atributos de estilo (podem ser usados junto das cores)
-	AttrNegrito    = termbox.AttrBold
-	AttrSublinhado = termbox.AttrUnderline
-	AttrPiscando   = termbox.AttrBlink // (se suportado pelo terminal)
-	AttrInverso    = termbox.AttrReverse
+	CorPadrao      Cor = termbox.ColorDefault
+	CorPreto           = termbox.ColorBlack
+	CorVermelho        = termbox.ColorRed
+	CorVerde           = termbox.ColorGreen
+	CorAmarelo         = termbox.ColorYellow
+	CorAzul            = termbox.ColorBlue
+	CorMagenta         = termbox.ColorMagenta
+	CorCiano           = termbox.ColorCyan
+	CorBranco          = termbox.ColorWhite
+	CorCinzaEscuro     = termbox.ColorDarkGray
+	CorTexto           = termbox.ColorDarkGray
+	CorParede          = termbox.ColorBlack | termbox.AttrBold | termbox.AttrDim
+	CorFundoParede     = termbox.ColorDarkGray
+	AttrNegrito        = termbox.AttrBold
+	AttrSublinhado     = termbox.AttrUnderline
+	AttrPiscando       = termbox.AttrBlink
+	AttrInverso        = termbox.AttrReverse
 )
 
 // EventoTeclado representa uma ação detectada do teclado (como mover, sair ou interagir)
@@ -63,7 +57,6 @@ func interfaceLerEventoTeclado() EventoTeclado {
 	if ev.Type != termbox.EventKey {
 		return EventoTeclado{}
 	}
-	// Ignora Caps Lock/Shift/outras teclas modificadoras
 	if ev.Key == termbox.KeyEsc {
 		return EventoTeclado{Tipo: "sair"}
 	}
@@ -80,6 +73,7 @@ func interfaceLerEventoTeclado() EventoTeclado {
 // Renderiza todo o estado atual do jogo na tela
 func interfaceDesenharJogo(jogo *Jogo) {
 	interfaceLimparTela()
+
 	// Desenha todos os elementos do mapa
 	for y, linha := range jogo.Mapa {
 		for x, elem := range linha {
@@ -115,7 +109,6 @@ func interfaceDesenharElemento(x, y int, elem Elemento) {
 // Exibe uma barra de status com informações úteis ao jogador
 func interfaceDesenharBarraDeStatus(jogo *Jogo) {
 	// Linha de status dinâmica
-
 	status := fmt.Sprintf("%s | Mato: %d | Tempo: %ds",
 		jogo.StatusMsg, jogo.VegetacoesColetadas, jogo.TempoRestante)
 

@@ -5,57 +5,27 @@ import (
 	"fmt"
 )
 
-// Atualiza a posição do personagem com base na tecla pressionada (WASD)
 func personagemMover(tecla rune, jogo *Jogo) {
 	dx, dy := 0, 0
 	switch tecla {
 	case 'w':
-		dy = -1
+		dy = -1 // Move para cima
 	case 'a':
-		dx = -1
+		dx = -1 // Move para a esquerda
 	case 's':
-		dy = 1
+		dy = 1 // Move para baixo
 	case 'd':
-		dx = 1
+		dx = 1 // Move para a direita
 	}
 
 	nx, ny := jogo.PosX+dx, jogo.PosY+dy
-
-	// Verifica colisão com vegetação
-	if jogo.Mapa[ny][nx].simbolo == Vegetacao.simbolo {
-		jogo.Mutex.Lock()
-		jogo.Mapa[ny][nx] = Vazio
-		jogo.VegetacoesColetadas++
-		select {
-		case jogo.VegChan <- jogo.VegetacoesColetadas:
-		default:
-		}
-		jogo.Mutex.Unlock()
-	}
-
-	// Verifica colisão com inimigos
-	for _, inimigo := range jogo.Inimigos {
-		if inimigo.X == nx && inimigo.Y == ny {
-			jogo.Vida--
-			jogo.StatusMsg = fmt.Sprintf("Você foi atingido! Vida restante: %d", jogo.Vida)
-			if jogo.Vida <= 0 {
-				jogo.StatusMsg = "💀 GAME OVER"
-				return
-			}
-		}
-	}
-
+	verificaColisaoVegetacao(jogo, nx, ny)
 	if jogoPodeMoverPara(jogo, nx, ny) {
 		jogoMoverElemento(jogo, jogo.PosX, jogo.PosY, dx, dy)
 		jogo.PosX, jogo.PosY = nx, ny
 	}
 }
-
-// Define o que ocorre quando o jogador pressiona a tecla de interação
-// Neste exemplo, apenas exibe uma mensagem de status
-// Você pode expandir essa função para incluir lógica de interação com objetos
 func personagemInteragir(jogo *Jogo) {
-	// Atualmente apenas exibe uma mensagem de status
 	jogo.StatusMsg = fmt.Sprintf("Interagindo em (%d, %d)", jogo.PosX, jogo.PosY)
 }
 
@@ -73,4 +43,19 @@ func personagemExecutarAcao(ev EventoTeclado, jogo *Jogo) bool {
 		personagemMover(ev.Tecla, jogo)
 	}
 	return true // Continua o jogo
+}
+
+func verificaColisaoVegetacao(jogo *Jogo, nx, ny int) {
+	if jogo.Mapa[ny][nx].simbolo == Vegetacao.simbolo {
+		jogo.Mutex.Lock()
+		defer jogo.Mutex.Unlock()
+
+		jogo.Mapa[ny][nx] = Vazio
+		jogo.VegetacoesColetadas++
+
+		select {
+		case jogo.VegChan <- jogo.VegetacoesColetadas:
+		default:
+		}
+	}
 }

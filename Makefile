@@ -1,6 +1,8 @@
 .PHONY: all build
 
 all: build
+	./jogo
+
 
 go.mod:
 	go mod init jogo
