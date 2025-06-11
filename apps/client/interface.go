@@ -1,7 +1,9 @@
 package main
+
 import (
 	"fppd-jogo/logica_jogo"
 	"fmt"
+	"sort"
 	"github.com/nsf/termbox-go"
 )
 
@@ -11,7 +13,7 @@ type Cor = termbox.Attribute
 
 const (
 	CorPadrao   Cor = termbox.ColorDefault
-	CorVermelho Cor = termbox.ColorRed
+	CorAmarelo  Cor = termbox.ColorYellow
 	CorTexto    Cor = termbox.ColorDarkGray
 )
 
@@ -50,18 +52,20 @@ func DesenharJogo(jogo *Jogo) {
 		return
 	}
 
+	// 1. Desenha o mapa base
 	for y, linha := range jogo.Mapa {
 		for x, elem := range linha {
 			termbox.SetCell(x, y, elem.Simbolo, elem.Cor, elem.CorFundo)
 		}
 	}
 
+	// 2. Desenha todos os jogadores por cima do mapa
 	for name, pState := range jogo.Players {
 		var char logica_jogo.Elemento
 		if name == jogo.MyName {
-			char = logica_jogo.Personagem 
+			char = logica_jogo.Personagem
 		} else {
-			char = logica_jogo.OutroJogador 
+			char = logica_jogo.OutroJogador
 		}
 		termbox.SetCell(pState.X, pState.Y, char.Simbolo, char.Cor, char.CorFundo)
 	}
@@ -76,24 +80,33 @@ func desenharBarraDeStatus(jogo *Jogo) {
 		return
 	}
 
-	status := fmt.Sprintf("%s | Mato: %d", jogo.StatusMsg, meuEstado.VegetacoesColetadas)
-	for i, c := range status {
-		termbox.SetCell(i, len(jogo.Mapa)+1, c, CorTexto, CorPadrao)
-	}
+	linhaYBase := len(jogo.Mapa) + 1
 
-	// Desenhar vida
-	for i := 0; i < 3; i++ {
-		coracao := '♥'
-		cor := CorVermelho
-		if i >= meuEstado.Vida {
-			coracao = '♡'
-			cor = CorTexto
-		}
-		termbox.SetCell(70+i*2, len(jogo.Mapa)+1, coracao, cor, CorPadrao)
+	status := fmt.Sprintf("%s | Sua pontuação: %d", jogo.StatusMsg, meuEstado.VegetacoesColetadas)
+	drawString(0, linhaYBase, status, CorTexto, CorPadrao)
+
+	drawString(0, linhaYBase+1, "--- PONTUAÇÕES ---", CorAmarelo, CorPadrao)
+
+	playerNames := make([]string, 0, len(jogo.Players))
+	for name := range jogo.Players {
+		playerNames = append(playerNames, name)
+	}
+	sort.Strings(playerNames)
+
+	linhaPlacarY := linhaYBase + 2
+	for _, name := range playerNames {
+		pState := jogo.Players[name] 
+		placarJogador := fmt.Sprintf("%s: %d", pState.Name, pState.VegetacoesColetadas)
+		drawString(0, linhaPlacarY, placarJogador, CorTexto, CorPadrao)
+		linhaPlacarY++ 
 	}
 
 	msg := "Use WASD para mover e E para interagir. ESC para sair."
-	for i, c := range msg {
-		termbox.SetCell(i, len(jogo.Mapa)+3, c, CorTexto, CorPadrao)
+	drawString(0, linhaPlacarY+1, msg, CorTexto, CorPadrao)
+}
+
+func drawString(x, y int, text string, fg, bg Cor) {
+	for i, c := range text {
+		termbox.SetCell(x+i, y, c, fg, bg)
 	}
 }

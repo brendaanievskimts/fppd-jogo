@@ -12,15 +12,15 @@ import (
 	"sync"
 )
 
-//struct com o estado do jogo
+// GameServer struct com o estado do jogo
 type GameServer struct {
 	mutex         sync.Mutex
 	gameState     game.GameState
 	lastProcessed map[string]int64
-	spawnPoints   [][2]int // Lista de coordenadas [x,y] pra saber onde o cara pode aparecer
+	spawnPoints   [][2]int // Lista de coordenadas [x,y] para spawn
 }
 
-//aqui ele vê onde o cara pode aparecer e coloca ele lá
+// preencherSpawnPoints: preenche a lista de locais onde um jogador pode aparecer
 func (s *GameServer) preencherSpawnPoints() {
 	for y, linha := range s.gameState.Mapa {
 		for x, elem := range linha {
@@ -32,7 +32,7 @@ func (s *GameServer) preencherSpawnPoints() {
 	}
 }
 
-// Jogador entra no jogo e recebe uma posição aleatória.
+// JoinGame: Jogador entra no jogo e recebe uma posição aleatória.
 func (s *GameServer) JoinGame(request game.JoinRequest, reply *game.GameState) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -60,7 +60,7 @@ func (s *GameServer) JoinGame(request game.JoinRequest, reply *game.GameState) e
 	return nil
 }
 
-// Onde manda os dados atualizados pro client renderizar na tela dele
+// GetGameState: Retorna o estado atual do jogo para um cliente.
 func (s *GameServer) GetGameState(args *game.EmptyArgs, reply *game.GameState) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -69,12 +69,22 @@ func (s *GameServer) GetGameState(args *game.EmptyArgs, reply *game.GameState) e
 }
 
 // UpdateState: Cliente envia o seu novo estado.
-//Aí aqui recece e trata de guardar eles pra enviar quando pedir dnv algum outro client ou ele mesmo
-// A verificação de `lastProcessed` e `SequenceNumber` garante a idempotência sla oq
+// A verificação de `lastProcessed` e `SequenceNumber` garante a idempotência.
 func (s *GameServer) UpdateState(update game.ClientUpdate, reply *bool) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
+	// --- MUDANÇA PRINCIPAL AQUI ---
+	// 1. Verificar se o jogador realmente existe antes de atualizar.
+	if _, exists := s.gameState.Players[update.PlayerName]; !exists {
+		// Se o jogador não existe, ele não deveria estar enviando atualizações.
+		// Isso previne a criação de "jogadores fantasma".
+		log.Printf("Rejeitando atualização do jogador desconhecido: %s", update.PlayerName)
+		*reply = false
+		return fmt.Errorf("jogador '%s' não existe no jogo", update.PlayerName)
+	}
+
+	// 2. Processar a atualização apenas para jogadores existentes.
 	if lastSeq, found := s.lastProcessed[update.PlayerName]; found && update.SequenceNumber <= lastSeq {
 		*reply = true
 		return nil // Comando já processado, ignora.
@@ -92,7 +102,7 @@ func (s *GameServer) UpdateState(update game.ClientUpdate, reply *bool) error {
 	return nil
 }
 
-// carregarMapa permanece o mesmo.
+// carregarMapa: Carrega o layout do mapa de um arquivo de texto.
 func carregarMapa(nome string, gameState *game.GameState) {
 	arq, err := os.Open(nome)
 	if err != nil {
@@ -124,14 +134,14 @@ func main() {
 		gameState: game.GameState{
 			Players: make(map[string]game.PlayerState),
 			Mapa:    [][]game.ElementoDoMapa{},
-			Status:  "Servidor online. Bem-vindo!", 
+			Status:  "Servidor online. Bem-vindo!",
 		},
 		lastProcessed: make(map[string]int64),
 		spawnPoints:   make([][2]int, 0),
 	}
 
 	carregarMapa("mapa.txt", &servidor.gameState)
-	servidor.preencherSpawnPoints() 
+	servidor.preencherSpawnPoints()
 
 	rpc.Register(servidor)
 	listener, err := net.Listen("tcp", ":1234")
