@@ -10,8 +10,8 @@ import (
 )
 
 func main() {
-	if len(os.Args) < 3 { // se o cara me passar menos de 3 argumentos, dá esses logs ai pra ele se ligar.
-		log.Fatalf("Uso: go run client/client.go <ip_do_servidor:porta> <SeuNomeDeJogador>") 
+	if len(os.Args) < 3 {
+		log.Fatalf("Uso: go run client/client.go <ip_do_servidor:porta> <SeuNomeDeJogador>")
 		log.Fatalf("Exemplo: go run client/client.go localhost:1234 Professor_Marcelo")
 	}
 	serverAddress := os.Args[1]
@@ -24,7 +24,7 @@ func main() {
 	defer client.Close()
 
 	Iniciar()
-	Finalizar()
+	defer Finalizar()
 
 	var estadoDoServidor game.GameState
 	joinReq := game.JoinRequest{Name: playerName}
@@ -33,7 +33,6 @@ func main() {
 		log.Fatal("Erro ao entrar no jogo: ", err)
 	}
 
-	// Cria o estado de jogo local, passando o nosso nome para que ele se identifique.
 	jogoLocal := logica_jogo.NovoJogo(playerName)
 	traduzirParaJogoLocal(estadoDoServidor, jogoLocal)
 
@@ -55,14 +54,16 @@ func main() {
 		select {
 		case ev := <-eventQueue:
 			estadoJogadorAntes, exists := jogoLocal.Players[playerName]
-			if !exists { continue }
+			if !exists {
+				continue
+			}
 
 			if !jogoLocal.ExecutarAcao(ev) {
 				return
 			}
 
 			estadoJogadorDepois := jogoLocal.Players[playerName]
-			
+
 			update, mudou := criarUpdateParaServidor(estadoJogadorAntes, estadoJogadorDepois, playerName, &sequenceNumber)
 			if mudou {
 				var success bool
@@ -84,14 +85,17 @@ func traduzirParaJogoLocal(gs game.GameState, jogoLocal *logica_jogo.Jogo) {
 		mapaLocal[y] = make([]logica_jogo.Elemento, len(linha))
 		for x, elemServidor := range linha {
 			switch elemServidor.Simbolo {
-			case '▤': mapaLocal[y][x] = logica_jogo.Parede
-			case '♣': mapaLocal[y][x] = logica_jogo.Vegetacao
-			default:  mapaLocal[y][x] = logica_jogo.Vazio
+			case '▤':
+				mapaLocal[y][x] = logica_jogo.Parede
+			case '♣':
+				mapaLocal[y][x] = logica_jogo.Vegetacao
+			default:
+				mapaLocal[y][x] = logica_jogo.Vazio
 			}
 		}
 	}
 	jogoLocal.Mapa = mapaLocal
-	jogoLocal.Players = gs.Players 
+	jogoLocal.Players = gs.Players
 	jogoLocal.StatusMsg = gs.Status
 }
 
