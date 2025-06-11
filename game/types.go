@@ -1,32 +1,42 @@
 package game
 
-// Elemento representa um objeto do mapa
-type Elemento struct {
-    Simbolo  rune
-    Tangivel bool // Bloqueia passagem?
+type ElementoDoMapa struct {
+	Simbolo  rune
+	Tangivel bool
 }
 
-// PlayerState guarda a informação de um único jogador
+//o nome já diz, estado do jogador
 type PlayerState struct {
-    ID           string
-    X, Y         int
-    GramasComidas int
+	Name                string 
+	X, Y                int
+	Vida                int
+	VegetacoesColetadas int
 }
 
-// GameState é a fotografia completa do estado do jogo em um dado momento
+//o estado que o jogo se encontra
 type GameState struct {
-    Mapa    [][]Elemento
-    Players map[string]PlayerState
-    Status  string // Mensagem do jogo (ex: tempo, vencedor)
+	Mapa    [][]ElementoDoMapa
+	Players map[string]PlayerState 
+	Status  string
 }
 
-// ClientCommand é o comando enviado do cliente para o servidor
-type ClientCommand struct {
-    ClientID       string
-    SequenceNumber int64
-    Action         string
-    Params         map[string]interface{}
+// JoinRequest é usado para o cliente se apresentar com o seu nome.
+type JoinRequest struct {
+	Name string
 }
 
-// EmptyArgs é usado para chamadas RPC que não precisam de argumentos
+// ClientUpdate é o pacote de atualização enviado pelo cliente.
+type ClientUpdate struct {
+	PlayerName     string 
+	SequenceNumber int64
+	NewPlayerState PlayerState
+	TileChanged    *MapTileChange
+}
+
+type MapTileChange struct {
+	X, Y       int
+	NewElement ElementoDoMapa
+}
+
+// ta vazio aqui pq tenho que passar algo nas funções e é isso.
 type EmptyArgs struct{}

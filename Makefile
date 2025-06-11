@@ -1,7 +1,7 @@
 .PHONY: all build
 
 all: build
-	./jogo
+	
 
 
 go.mod:
