@@ -79,15 +79,9 @@ func (jogo *Jogo) moverPersonagem(tecla rune) {
 	nx, ny := meuEstado.X+dx, meuEstado.Y+dy
 
 	if jogo.podeMoverPara(nx, ny) {
-		// Verifica se a nova posição contém uma vegetação
 		if jogo.Mapa[ny][nx].Simbolo == Vegetacao.Simbolo {
-			// ALTERAÇÃO: A linha que modifica o mapa localmente foi removida.
-			// O cliente agora apenas atualiza a pontuação e informa o servidor.
-			// A remoção visual da vegetação virá do estado autoritativo do servidor,
-			// evitando o efeito de "piscar".
 			meuEstado.VegetacoesColetadas++
 		}
-		// Atualiza a posição do jogador localmente para feedback imediato
 		meuEstado.X = nx
 		meuEstado.Y = ny
 		jogo.Players[jogo.MyName] = meuEstado
@@ -95,15 +89,12 @@ func (jogo *Jogo) moverPersonagem(tecla rune) {
 }
 
 func (jogo *Jogo) podeMoverPara(x, y int) bool {
-	// Verifica limites do mapa
 	if y < 0 || y >= len(jogo.Mapa) || x < 0 || x >= len(jogo.Mapa[y]) {
 		return false
 	}
-	// Verifica se o tile é uma parede
 	if jogo.Mapa[y][x].Tangivel {
 		return false
 	}
-	// Verifica colisão com outros jogadores
 	for name, p := range jogo.Players {
 		if name != jogo.MyName && p.X == x && p.Y == y {
 			return false

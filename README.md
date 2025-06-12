@@ -1,7 +1,7 @@
 # fppd-jogo
 # 🌿 Capim Simulator
 
-**Capim Simulator** é um jogo de terminal escrito em Go, onde jogadores controlam personagens em um mapa 2D e devem coletar o máximo de **mato (♣)** possível, enquanto evitam **inimigos (☠)** e **armadilhas (X)**. Agora com suporte a **modo multiplayer via RPC**, dois jogadores podem competir ou cooperar em tempo real.
+**Capim Simulator** é um jogo de terminal escrito em Go, onde jogadores controlam personagens em um mapa 2D e devem coletar o máximo de **mato (♣)** possíve. Agora com suporte a **modo multiplayer via RPC**, dois jogadores podem competir ou cooperar em tempo real.
 
 ## 📦 Funcionalidades
 
@@ -22,5 +22,3 @@ Movimentação: O jogador usa WASD para se mover.
 - [Go](https://golang.org/dl/) 1.18 ou superior
 - Terminal compatível (Linux, macOS ou Windows WSL)
 - Arquivo `mapa.txt` com o mapa do jogo (exemplo incluso)
-
-

@@ -43,8 +43,22 @@ func main() {
 		}
 	}()
 
-	ticker := time.NewTicker(150 * time.Millisecond)
-	defer ticker.Stop()
+	serverUpdates := make(chan game.GameState)
+
+	go func() {
+		ticker := time.NewTicker(150 * time.Millisecond)
+		defer ticker.Stop()
+
+		var gameStateFromServer game.GameState
+		for range ticker.C {
+			err := client.Call("GameServer.GetGameState", &game.EmptyArgs{}, &gameStateFromServer)
+			if err == nil {
+				serverUpdates <- gameStateFromServer
+			} else {
+				log.Printf("Erro ao buscar estado do jogo: %v", err)
+			}
+		}
+	}()
 
 	var sequenceNumber int64 = 0
 
@@ -70,14 +84,12 @@ func main() {
 				go client.Call("GameServer.UpdateState", update, &success)
 			}
 
-		case <-ticker.C:
-			err := client.Call("GameServer.GetGameState", &game.EmptyArgs{}, &estadoDoServidor)
-			if err == nil {
-				traduzirParaJogoLocal(estadoDoServidor, jogoLocal)
-			}
+		case novoEstadoDoServidor := <-serverUpdates:
+			traduzirParaJogoLocal(novoEstadoDoServidor, jogoLocal)
 		}
 	}
 }
+
 
 func traduzirParaJogoLocal(gs game.GameState, jogoLocal *logica_jogo.Jogo) {
 	mapaLocal := make([][]logica_jogo.Elemento, len(gs.Mapa))
